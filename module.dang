@@ -153,7 +153,6 @@ type Dangpkg {
       "/" + file.trimSuffix("/" + CONFIG_FILE)
     }
   }
-
 }
 
 type Config {
@@ -198,7 +197,9 @@ type Dependency {
   }
 
   let sourceRoot(workspaceRoot: Directory!): Directory! {
-    if (self.githubURLSource) {
+    if (self.localSource(workspaceRoot)) {
+      workspaceRoot.directory(cleanPath(self.source))
+    } else if (self.githubSource) {
       self.githubSourceRoot
     } else if (self.remoteSource) {
       Dagger.moduleSource(refString: self.source).directory("")
@@ -207,22 +208,38 @@ type Dependency {
     }
   }
 
+  let localSource(workspaceRoot: Directory!): Boolean! {
+    !self.explicitRemoteSource and workspaceRoot.exists(
+      cleanPath(self.source),
+      expectedType: ExistsType.DIRECTORY_TYPE,
+    )
+  }
+
+  let explicitRemoteSource: Boolean! {
+    source.contains("://") or source.hasPrefix("git@")
+  }
+
   let remoteSource: Boolean! {
     source.contains("://") or source.hasPrefix("github.com/") or source.hasPrefix("gitlab.com/") or source.hasPrefix("bitbucket.org/") or source.hasPrefix("git@")
   }
 
-  let githubURLSource: Boolean! {
-    source.hasPrefix("https://github.com/") or source.hasPrefix("http://github.com/")
+  let githubSource: Boolean! {
+    source.hasPrefix("https://github.com/") or source.hasPrefix("http://github.com/") or source.hasPrefix("github.com/")
   }
 
   let githubSourceRoot: Directory! {
     let parsed = self.parseGitHubSource
-
-    Dagger
+    let root = Dagger
       .git(parsed.url)
       .ref(parsed.ref)
       .tree(depth: 1)
       .directory(parsed.path)
+
+    if (parsed.path == "" and root.exists("lib", expectedType: ExistsType.DIRECTORY_TYPE)) {
+      root.directory("lib")
+    } else {
+      root
+    }
   }
 
   let parseGitHubSource: GitHubSource! {

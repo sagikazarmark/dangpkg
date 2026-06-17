@@ -59,8 +59,18 @@ type Main {
       recursive: false,
     )
     assert { currentOnly.exists("tests/fixtures/root/vendor.gen.dang", expectedType: ExistsType.REGULAR_TYPE) }
-    assert { !currentOnly.exists("tests/fixtures/nested/module/vendor.gen.dang", expectedType: ExistsType.REGULAR_TYPE) }
-    assert { !currentOnly.exists("tests/fixtures/explicit-path/vendor.gen.dang", expectedType: ExistsType.REGULAR_TYPE) }
+    assert {
+      !currentOnly.exists(
+        "tests/fixtures/nested/module/vendor.gen.dang",
+        expectedType: ExistsType.REGULAR_TYPE,
+      )
+    }
+    assert {
+      !currentOnly.exists(
+        "tests/fixtures/explicit-path/vendor.gen.dang",
+        expectedType: ExistsType.REGULAR_TYPE,
+      )
+    }
 
     let nestedOnly = Dagger.dangpkg.generateWorkspace(
       source,
@@ -68,7 +78,12 @@ type Main {
     )
     assert { nestedOnly.exists("tests/fixtures/nested/module/vendor.gen.dang", expectedType: ExistsType.REGULAR_TYPE) }
     assert { !nestedOnly.exists("tests/fixtures/root/vendor.gen.dang", expectedType: ExistsType.REGULAR_TYPE) }
-    assert { !nestedOnly.exists("tests/fixtures/explicit-path/vendor.gen.dang", expectedType: ExistsType.REGULAR_TYPE) }
+    assert {
+      !nestedOnly.exists(
+        "tests/fixtures/explicit-path/vendor.gen.dang",
+        expectedType: ExistsType.REGULAR_TYPE,
+      )
+    }
 
     null
   }
@@ -78,7 +93,10 @@ type Main {
   """
   validationFailures(ws: Workspace!): Void @check {
     self.assertGenerateFails(
-      self.invalidSource(ws, "invalid/empty-source/dang.toml", self.dependencyConfig("", ["path"])),
+      self.invalidSource(ws, "invalid/empty-source/dang.toml", self.dependencyConfig(
+        "",
+        ["path"],
+      )),
       "invalid/empty-source/vendor.gen.dang",
       "dang.toml dependency source must not be empty",
     )
@@ -94,19 +112,31 @@ type Main {
     )
 
     self.assertGenerateFails(
-      self.invalidSource(ws, "invalid/empty-package/dang.toml", self.dependencyConfig("tests/fixtures/modules/packages", [""])),
+      self.invalidSource(
+        ws,
+        "invalid/empty-package/dang.toml",
+        self.dependencyConfig("tests/fixtures/modules/packages", [""]),
+      ),
       "invalid/empty-package/vendor.gen.dang",
       "package name must not be empty",
     )
 
     self.assertGenerateFails(
-      self.invalidSource(ws, "invalid/missing-package/dang.toml", self.dependencyConfig("tests/fixtures/modules/packages", ["missing"])),
+      self.invalidSource(
+        ws,
+        "invalid/missing-package/dang.toml",
+        self.dependencyConfig("tests/fixtures/modules/packages", ["missing"]),
+      ),
       "invalid/missing-package/vendor.gen.dang",
       "package source not found: missing",
     )
 
     self.assertGenerateFails(
-      self.invalidSource(ws, "invalid/only-tests/dang.toml", self.dependencyConfig("tests/fixtures/modules/packages", ["only-tests"])),
+      self.invalidSource(
+        ws,
+        "invalid/only-tests/dang.toml",
+        self.dependencyConfig("tests/fixtures/modules/packages", ["only-tests"]),
+      ),
       "invalid/only-tests/vendor.gen.dang",
       "package has no source files: only-tests",
     )
@@ -118,21 +148,47 @@ type Main {
   Remote GitHub package sources can be vendored without test files.
   """
   remoteDependencies(ws: Workspace!): Void @check {
-    let source = self.packageSource(ws).withNewFile(
-      "remote/dang.toml",
-      self.dependencyConfig(
-        "https://github.com/sagikazarmark/danglib/lib@e40600ef7e38476a51d937ef2eb1a753ff8dad88",
-        ["path", "strings"],
-      ),
-    )
+    let source = self
+      .packageSource(ws)
+      .withNewFile(
+        "remote/dang.toml",
+        self.dependencyConfig(
+          "https://github.com/sagikazarmark/danglib/lib@e40600ef7e38476a51d937ef2eb1a753ff8dad88",
+          ["path", "strings"],
+        ),
+      )
+      .withNewFile(
+        "remote-bare/dang.toml",
+        self.dependencyConfig(
+          "github.com/sagikazarmark/danglib@e40600ef7e38476a51d937ef2eb1a753ff8dad88",
+          ["path", "strings"],
+        ),
+      )
+      .withNewFile(
+        "local-github/dang.toml",
+        self.dependencyConfig("github.com/sagikazarmark/danglib", ["path"]),
+      )
+      .withNewFile(
+        "github.com/sagikazarmark/danglib/path/path.dang",
+        "localOnly: String! { \"workspace\" }\n",
+      )
     let generated = Dagger.dangpkg.generateWorkspace(source)
     let remote = generated.file("remote/vendor.gen.dang").contents
+    let remoteBare = generated.file("remote-bare/vendor.gen.dang").contents
+    let localGitHub = generated.file("local-github/vendor.gen.dang").contents
 
     assert { remote.contains("type Path {") }
     assert { remote.contains("separator: String!") }
     assert { remote.contains("type Strings {") }
     assert { remote.contains("slug(s: String!)") }
     assert { !remote.contains("assert {") }
+    assert { remoteBare.contains("type Path {") }
+    assert { remoteBare.contains("separator: String!") }
+    assert { remoteBare.contains("type Strings {") }
+    assert { remoteBare.contains("slug(s: String!)") }
+    assert { !remoteBare.contains("assert {") }
+    assert { localGitHub.contains("type Path {") }
+    assert { localGitHub.contains("localOnly: String!") }
 
     null
   }
@@ -192,7 +248,9 @@ type Main {
   ): Void {
     let message = try {
       Dagger.dangpkg.generateWorkspace(source).file(path).contents
-    } catch { err => err.message }
+    } catch {
+      err => err.message
+    }
 
     assert { message.contains(expectedMessage) }
 

@@ -6,23 +6,19 @@ Package vendoring for Dang modules.
 
 ## Usage
 
-Install `dangpkg` in your Dagger module:
+Install `dangpkg` in your Dagger workspace:
 
 ```bash
 dagger install github.com/sagikazarmark/dangpkg
 ```
 
-Create `dang.toml` in a Dang module directory:
-
-```bash
-dang toml
-```
+Create `dang.toml` in a Dang module directory.
 
 Add the packages you want to vendor. For example, to vendor packages from `danglib`:
 
 ```toml
 [[dependencies]]
-source = "https://github.com/sagikazarmark/danglib"
+source = "github.com/sagikazarmark/danglib"
 packages = ["path", "strings"]
 ```
 
@@ -32,15 +28,6 @@ Generate `vendor.gen.dang`:
 dagger generate
 ```
 
-## Dependency Sources
+## License
 
-Each dependency `source` is a git repository, not a Dagger module source reference. Local paths are also supported for workspace-relative dependencies.
-
-Packages are read from directories under the dependency source repository:
-
-```text
-path/*.dang
-strings/*.dang
-```
-
-`*.test.dang` files are excluded from generated output.
+The project is licensed under the [MIT License](LICENSE).
