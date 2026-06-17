@@ -89,6 +89,35 @@ type Main {
   }
 
   """
+  Constructor exclude paths skip matching Dang modules during generation.
+  """
+  excludePaths(ws: Workspace!): Void @check {
+    let source = self.successSource(ws)
+    let generated = Dagger
+      .dangpkg(excludePaths: ["tests/fixtures/nested", "/tests/fixtures/explicit-path/"])
+      .generateWorkspace(source)
+
+    assert { generated.exists("tests/fixtures/root/vendor.gen.dang", expectedType: ExistsType.REGULAR_TYPE) }
+    assert {
+      !generated.exists(
+        "tests/fixtures/nested/module/vendor.gen.dang",
+        expectedType: ExistsType.REGULAR_TYPE,
+      )
+    }
+    assert {
+      !generated.exists(
+        "tests/fixtures/explicit-path/vendor.gen.dang",
+        expectedType: ExistsType.REGULAR_TYPE,
+      )
+    }
+
+    let rootExcluded = Dagger.dangpkg(excludePaths: ["/"]).generateWorkspace(source)
+    assert { !rootExcluded.exists("tests/fixtures/root/vendor.gen.dang", expectedType: ExistsType.REGULAR_TYPE) }
+
+    null
+  }
+
+  """
   Invalid dependency config fails with actionable messages.
   """
   validationFailures(ws: Workspace!): Void @check {

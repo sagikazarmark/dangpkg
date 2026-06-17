@@ -28,6 +28,14 @@ Generate `vendor.gen.dang`:
 dagger generate
 ```
 
+To skip Dang modules during generation, configure `excludePaths` on the module constructor:
+
+```dang
+Dagger
+  .dangpkg(excludePaths: [".dagger/modules/experimental"])
+  .generateWorkspace(source)
+```
+
 ## License
 
 The project is licensed under the [MIT License](LICENSE).

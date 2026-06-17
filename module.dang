@@ -58,6 +58,19 @@ let capitalize(name: String!): String! {
 }
 
 type Dangpkg {
+  let excludePaths: [String!]!
+
+  new(
+    """
+    Paths to Dang modules to skip during generation.
+    """
+    excludePaths: [String!]! = [],
+  ) {
+    self.excludePaths = excludePaths.map { cleanPath(_) }
+
+    self
+  }
+
   """
   Generate vendor.gen.dang for every dang.toml with dependencies found under a workspace.
   """
@@ -109,6 +122,7 @@ type Dangpkg {
   let dangModules(source: Directory!, cwd: String!, recursive: Boolean!): [DangModule!]! {
     self
       .dangDirectories(source, cwd, recursive)
+      .reject { self.excludedPath(_) }
       .map { cwd =>
         DangModule(
           cwd,
@@ -116,6 +130,18 @@ type Dangpkg {
         )
       }
       .reject { _.config.dependencies.isEmpty }
+  }
+
+  let excludedPath(path: String!): Boolean! {
+    let clean = cleanPath(path)
+
+    excludePaths.any { excluded =>
+      if (excluded == "") {
+        true
+      } else {
+        clean == excluded or clean.hasPrefix(excluded + "/")
+      }
+    }
   }
 
   let config(file: File!): Config! {
