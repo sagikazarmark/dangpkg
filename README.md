@@ -2,31 +2,41 @@
 
 Package vendoring for Dang modules.
 
-`dangpkg` reads `[[dependencies]]` from each `dang.toml`, lets Dagger resolve each dependency source, and generates `vendor.gen.dang` for every Dang module that has dependencies.
+`dangpkg` reads `[[dependencies]]` from each `dang.toml`, fetches each dependency source from a git repository, and generates `vendor.gen.dang` for every Dang module that has dependencies.
 
 ## Usage
 
+Install `dangpkg` in your Dagger module:
+
+```bash
+dagger install github.com/sagikazarmark/dangpkg
+```
+
 Create `dang.toml` in a Dang module directory:
+
+```bash
+dang toml
+```
+
+Add the packages you want to vendor. For example, to vendor packages from `danglib`:
 
 ```toml
 [[dependencies]]
-source = "github.com/sagikazarmark/danglib"
+source = "https://github.com/sagikazarmark/danglib"
 packages = ["path", "strings"]
 ```
 
 Generate `vendor.gen.dang`:
 
 ```bash
-dagger call -m . generate
+dagger generate
 ```
-
-From another repository, replace `.` with the `dangpkg` module reference you use.
 
 ## Dependency Sources
 
-Each dependency `source` is a Dagger module source reference. Dagger resolves each unique source once per generation pass.
+Each dependency `source` is a git repository, not a Dagger module source reference. Local paths are also supported for workspace-relative dependencies.
 
-Packages are read from directories under the dependency module source:
+Packages are read from directories under the dependency source repository:
 
 ```text
 path/*.dang
