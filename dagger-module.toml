@@ -1,0 +1,8 @@
+name = "dangpkg"
+engineVersion = "v1.0.0"
+runtime.source = "dang"
+include = ["!.github", "!tests"]
+
+[[dependencies]]
+name = "dang"
+source = ".dagger/modules/dang"

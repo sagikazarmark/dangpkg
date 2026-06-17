@@ -1,0 +1,6 @@
+[modules.main]
+source = ".dagger/modules/main"
+entrypoint = true
+
+[modules.dang]
+source = ".dagger/modules/dang"

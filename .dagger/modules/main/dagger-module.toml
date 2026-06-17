@@ -1,0 +1,11 @@
+name = "main"
+engineVersion = "v1.0.0"
+runtime.source = "dang"
+
+[[dependencies]]
+name = "dangpkg"
+source = "../../.."
+
+[[dependencies]]
+name = "dang"
+source = "../dang"

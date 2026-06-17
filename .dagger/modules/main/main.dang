@@ -1,0 +1,201 @@
+type Main {
+  """
+  Fixture dang.toml files generate the expected vendor.gen.dang files.
+  """
+  fixtures(ws: Workspace!): Void @check {
+    let source = self.successSource(ws)
+    let expected = ws.directory("/", gitignore: true)
+    let generated = Dagger.dangpkg.generateWorkspace(source)
+
+    self.assertGeneratedFileCurrent(expected, generated, "tests/fixtures/root/vendor.gen.dang")
+    self.assertGeneratedFileCurrent(expected, generated, "tests/fixtures/nested/module/vendor.gen.dang")
+    self.assertGeneratedFileCurrent(expected, generated, "tests/fixtures/explicit-path/vendor.gen.dang")
+    self.assertGeneratedFileCurrent(expected, generated, "tests/fixtures/path-normalization/vendor.gen.dang")
+    self.assertGeneratedFileCurrent(expected, generated, "tests/fixtures/type-name/vendor.gen.dang")
+    self.assertGeneratedFileCurrent(expected, generated, "tests/fixtures/multiple-dependencies/vendor.gen.dang")
+    assert { !generated.exists("tests/fixtures/no-deps/vendor.gen.dang", expectedType: ExistsType.REGULAR_TYPE) }
+
+    let root = generated.file("tests/fixtures/root/vendor.gen.dang").contents
+    assert { root.contains("type Path {") }
+    assert { root.contains("type Strings {") }
+    assert { !root.contains("assert {") }
+
+    let nested = generated.file("tests/fixtures/nested/module/vendor.gen.dang").contents
+    assert { nested.contains("type Path {") }
+    assert { !nested.contains("type Strings {") }
+    assert { !nested.contains("assert {") }
+
+    let explicit = generated.file("tests/fixtures/explicit-path/vendor.gen.dang").contents
+    assert { explicit.contains("type Maps {") }
+    assert { !explicit.contains("assert {") }
+
+    let normalized = generated.file("tests/fixtures/path-normalization/vendor.gen.dang").contents
+    assert { normalized.contains("type Path {") }
+
+    let typeName = generated.file("tests/fixtures/type-name/vendor.gen.dang").contents
+    assert { typeName.contains("type GroupNestedNameFooBarBaz {") }
+
+    null
+  }
+
+  """
+  cwd and recursive flags limit generation to the intended Dang modules.
+  """
+  workspaceSelection(ws: Workspace!): Void @check {
+    let source = self.successSource(ws)
+
+    let rootOnly = Dagger.dangpkg.generateWorkspace(
+      self.rootSource(ws),
+      cwd: ".",
+      recursive: false,
+    )
+    let rootGenerated = rootOnly.file("vendor.gen.dang").contents
+    assert { rootGenerated.contains("type Path {") }
+    assert { !rootOnly.exists("tests/fixtures/root/vendor.gen.dang", expectedType: ExistsType.REGULAR_TYPE) }
+
+    let currentOnly = Dagger.dangpkg.generateWorkspace(
+      source,
+      cwd: "/tests/fixtures/root",
+      recursive: false,
+    )
+    assert { currentOnly.exists("tests/fixtures/root/vendor.gen.dang", expectedType: ExistsType.REGULAR_TYPE) }
+    assert { !currentOnly.exists("tests/fixtures/nested/module/vendor.gen.dang", expectedType: ExistsType.REGULAR_TYPE) }
+    assert { !currentOnly.exists("tests/fixtures/explicit-path/vendor.gen.dang", expectedType: ExistsType.REGULAR_TYPE) }
+
+    let nestedOnly = Dagger.dangpkg.generateWorkspace(
+      source,
+      cwd: "tests/fixtures/nested/",
+    )
+    assert { nestedOnly.exists("tests/fixtures/nested/module/vendor.gen.dang", expectedType: ExistsType.REGULAR_TYPE) }
+    assert { !nestedOnly.exists("tests/fixtures/root/vendor.gen.dang", expectedType: ExistsType.REGULAR_TYPE) }
+    assert { !nestedOnly.exists("tests/fixtures/explicit-path/vendor.gen.dang", expectedType: ExistsType.REGULAR_TYPE) }
+
+    null
+  }
+
+  """
+  Invalid dependency config fails with actionable messages.
+  """
+  validationFailures(ws: Workspace!): Void @check {
+    self.assertGenerateFails(
+      self.invalidSource(ws, "invalid/empty-source/dang.toml", self.dependencyConfig("", ["path"])),
+      "invalid/empty-source/vendor.gen.dang",
+      "dang.toml dependency source must not be empty",
+    )
+
+    self.assertGenerateFails(
+      self.invalidSource(
+        ws,
+        "invalid/duplicate-packages/dang.toml",
+        self.dependencyConfig("tests/fixtures/modules/packages", ["path", "path"]),
+      ),
+      "invalid/duplicate-packages/vendor.gen.dang",
+      "dang.toml dependency packages must not contain duplicates: tests/fixtures/modules/packages",
+    )
+
+    self.assertGenerateFails(
+      self.invalidSource(ws, "invalid/empty-package/dang.toml", self.dependencyConfig("tests/fixtures/modules/packages", [""])),
+      "invalid/empty-package/vendor.gen.dang",
+      "package name must not be empty",
+    )
+
+    self.assertGenerateFails(
+      self.invalidSource(ws, "invalid/missing-package/dang.toml", self.dependencyConfig("tests/fixtures/modules/packages", ["missing"])),
+      "invalid/missing-package/vendor.gen.dang",
+      "package source not found: missing",
+    )
+
+    self.assertGenerateFails(
+      self.invalidSource(ws, "invalid/only-tests/dang.toml", self.dependencyConfig("tests/fixtures/modules/packages", ["only-tests"])),
+      "invalid/only-tests/vendor.gen.dang",
+      "package has no source files: only-tests",
+    )
+
+    null
+  }
+
+  """
+  Remote GitHub package sources can be vendored without test files.
+  """
+  remoteDependencies(ws: Workspace!): Void @check {
+    let source = self.packageSource(ws).withNewFile(
+      "remote/dang.toml",
+      self.dependencyConfig(
+        "https://github.com/sagikazarmark/danglib/lib@e40600ef7e38476a51d937ef2eb1a753ff8dad88",
+        ["path", "strings"],
+      ),
+    )
+    let generated = Dagger.dangpkg.generateWorkspace(source)
+    let remote = generated.file("remote/vendor.gen.dang").contents
+
+    assert { remote.contains("type Path {") }
+    assert { remote.contains("separator: String!") }
+    assert { remote.contains("type Strings {") }
+    assert { remote.contains("slug(s: String!)") }
+    assert { !remote.contains("assert {") }
+
+    null
+  }
+
+  let successSource(ws: Workspace!): Directory! {
+    ws.directory(
+      "/",
+      gitignore: true,
+      include: [
+        "tests/fixtures/root/dang.toml",
+        "tests/fixtures/nested/module/dang.toml",
+        "tests/fixtures/explicit-path/dang.toml",
+        "tests/fixtures/path-normalization/dang.toml",
+        "tests/fixtures/type-name/dang.toml",
+        "tests/fixtures/multiple-dependencies/dang.toml",
+        "tests/fixtures/no-deps/dang.toml",
+        "tests/fixtures/modules/**/*.dang",
+      ],
+    )
+  }
+
+  let rootSource(ws: Workspace!): Directory! {
+    self.packageSource(ws).withNewFile(
+      "dang.toml",
+      self.dependencyConfig("tests/fixtures/modules/packages", ["path"]),
+    )
+  }
+
+  let invalidSource(ws: Workspace!, path: String!, contents: String!): Directory! {
+    self.packageSource(ws).withNewFile(path, contents)
+  }
+
+  let packageSource(ws: Workspace!): Directory! {
+    ws.directory("/", gitignore: true, include: ["tests/fixtures/modules/**/*.dang"])
+  }
+
+  let dependencyConfig(source: String!, packages: [String!]!): String! {
+    let quotedPackages = packages.map { packageName => "\"" + packageName + "\"" }.join(", ")
+
+    "[[dependencies]]\nsource = \"" + source + "\"\npackages = [" + quotedPackages + "]\n"
+  }
+
+  let assertGeneratedFileCurrent(
+    expected: Directory!,
+    generated: Directory!,
+    path: String!,
+  ): Void {
+    assert { generated.file(path).contents == expected.file(path).contents }
+
+    null
+  }
+
+  let assertGenerateFails(
+    source: Directory!,
+    path: String!,
+    expectedMessage: String!,
+  ): Void {
+    let message = try {
+      Dagger.dangpkg.generateWorkspace(source).file(path).contents
+    } catch { err => err.message }
+
+    assert { message.contains(expectedMessage) }
+
+    null
+  }
+}

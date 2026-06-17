@@ -1,0 +1,3 @@
+[[dependencies]]
+source = "tests/fixtures/modules/packages"
+packages = ["group/nested-name/foo_bar.baz"]

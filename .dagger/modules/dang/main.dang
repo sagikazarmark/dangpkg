@@ -1,0 +1,127 @@
+type Dang {
+  let excludePaths: [String!]!
+
+  let dangSource: Directory!
+
+  new(
+    """
+    Exclude paths from formatting.
+    """
+    excludePaths: [String!]! = [],
+    """
+    Dang version.
+    """
+    version: String,
+    """
+    Dang source.
+    """
+    dangSource: Directory! = Dagger.git("https://github.com/vito/dang.git").ref(version ?? "HEAD").tree(depth: 1),
+  ) {
+    self.excludePaths = excludePaths
+    self.dangSource = dangSource
+
+    self
+  }
+
+  """
+  Run a Dang script or module.
+  """
+  run(
+    ws: Workspace!,
+    """
+    Source directory to evaluate.
+    """
+    source: Directory! = ws.directory("", gitignore: true, include: ["**/*.dang", "**/dang.toml"]),
+    """
+    Path to evaluate within the source directory.
+    """
+    path: String,
+  ): Container {
+    let args = ["dang"]
+
+    args += [if (path != null) { path } else { "." }]
+
+    self
+      .container
+      .withWorkdir("/work")
+      .withMountedDirectory(".", source)
+      .withExec(args)
+  }
+
+  """
+  Format dang files.
+  """
+  fmt(ws: Workspace!): Changeset! @generate {
+    let source = ws.directory("/", gitignore: true)
+
+    let files = source.glob("**/*.dang").reject { file => self.excludePaths.any { file.hasPrefix(_) } }
+
+    self
+      .container
+      .withWorkdir("/work")
+      .withMountedDirectory(".", source)
+      .withExec(["dang", "fmt", "-w"] + files)
+      .directory("/work")
+      .changes(source)
+  }
+
+  """
+  Format a single Dang file in a source directory.
+  """
+  formatFile(
+    """
+    Source directory to format in.
+    """
+    source: Directory!,
+    """
+    File path to format.
+    """
+    path: String!,
+  ): Directory! {
+    self
+      .container
+      .withWorkdir("/work")
+      .withMountedDirectory(".", source)
+      .withExec(["dang", "fmt", "-w", path])
+      .directory("/work")
+  }
+
+  """
+  Builds the dang binary for the given platform.
+  """
+  binary(
+    """
+    Platform to use for building the binary.
+    """
+    platform: Platform! = Dagger.defaultPlatform,
+  ): File! {
+    Dagger
+      .container
+      .from("golang:1.26.4-trixie@sha256:bbf22ddccb3205344f2755ea8fa4fe39f7a8b2b77b9f7b764ec2aad31406f6fc")
+      .withMountedCache("/go/pkg/mod", Dagger.cacheVolume("danglib-dang-go-mod"))
+      .withMountedCache("/root/.cache/go-build", Dagger.cacheVolume("danglib-dang-go-build"))
+      .{
+        let segments = toString(platform).trim("\"").split("/", 3)
+        let os = segments[0]
+        let arch = segments[1]
+
+        _.withEnvVariable("GOOS", os!).withEnvVariable("GOARCH", arch!)
+      }
+      .withEnvVariable("CGO_ENABLED", "0")
+      .withWorkdir("/usr/local/src/dang")
+      .withMountedDirectory(".", self.dangSource)
+      .withExec(["go", "build", "./cmd/dang"])
+      .file("dang")
+  }
+
+  """
+  Returns a container with the dang binary.
+  """
+  container: Container! {
+    let container = Dagger
+      .container
+      .from("alpine:3.24.1@sha256:28bd5fe8b56d1bd048e5babf5b10710ebe0bae67db86916198a6eec434943f8b")
+
+    container.withFile("/usr/local/bin/dang", binary, permissions: 755)
+  }
+}

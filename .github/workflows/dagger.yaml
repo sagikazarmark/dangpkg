@@ -1,0 +1,29 @@
+name: Dagger
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+env:
+  DAGGER_VERSION: d87b131f050764cac6205aa68b51b189aeaf000b
+
+jobs:
+  check:
+    name: Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Check
+        uses: dagger/dagger-for-github@27b130bf0f79a7f6fbbbe0fbca6760dc9bb40a77 # v8.4.1
+        with:
+          verb: check
+          args: -m .dagger/modules/main
+          # version: ${{ env.DAGGER_VERSION }}
+          commit: ${{ env.DAGGER_VERSION }}

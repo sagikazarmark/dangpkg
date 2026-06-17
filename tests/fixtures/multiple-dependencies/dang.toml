@@ -1,0 +1,7 @@
+[[dependencies]]
+source = "tests/fixtures/modules/packages"
+packages = ["path"]
+
+[[dependencies]]
+source = "tests/fixtures/modules/custom"
+packages = ["maps"]
