@@ -1,7 +1,9 @@
-[[dependencies]]
+[imports.Path]
+path = "./lib/path"
 source = "tests/fixtures/modules/packages"
-packages = ["path"]
+package = "path"
 
-[[dependencies]]
+[imports.Maps]
+path = "./lib/maps"
 source = "tests/fixtures/modules/custom"
-packages = ["maps"]
+package = "maps"

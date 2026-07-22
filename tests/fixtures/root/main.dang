@@ -1,0 +1,5 @@
+import Helpers
+import Text
+
+assert { Helpers.clean(" value ") == "value" }
+assert { Text.slug("Hello world") == "hello-world" }

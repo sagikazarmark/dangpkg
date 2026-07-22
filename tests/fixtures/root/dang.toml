@@ -1,3 +1,9 @@
-[[dependencies]]
+[imports.Helpers]
+path = "./lib/path"
 source = "tests/fixtures/modules/packages"
-packages = ["path", "strings"]
+package = "path"
+
+[imports.Text]
+path = "./lib/strings"
+source = "tests/fixtures/modules/packages"
+package = "strings"

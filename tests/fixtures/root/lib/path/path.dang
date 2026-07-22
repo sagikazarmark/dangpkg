@@ -1,0 +1,3 @@
+clean(path: String!): String! {
+  path.trimSpace
+}

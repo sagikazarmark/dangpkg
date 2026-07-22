@@ -1,3 +1,4 @@
-[[dependencies]]
-source = "tests/fixtures/modules/custom"
-packages = ["maps"]
+[imports.Maps]
+path = "./lib/maps"
+source = "tests/fixtures/modules/custom/maps"
+package = "."

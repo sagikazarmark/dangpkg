@@ -1,3 +1,4 @@
-[[dependencies]]
+[imports.Path]
+path = "./lib/unused/../path/"
 source = "tests/fixtures/modules/packages"
-packages = ["/path/"]
+package = "group/../path/"
